@@ -1,7 +1,24 @@
 # Kinetic — Gesture-Controlled Card Interface
 
+![Status](https://img.shields.io/badge/status-active-brightgreen)
+![Python](https://img.shields.io/badge/python-3.8--3.11-blue)
+![OpenCV](https://img.shields.io/badge/OpenCV-4.x-orange)
+![MediaPipe](https://img.shields.io/badge/MediaPipe-0.9.x-red)
 
 A real-time gesture-controlled card interface that uses your webcam to track hand movements and control image cards on screen. Point at a card to select it, close your fist to drag it, and open your hand to release — all without touching a keyboard or mouse.
+
+---
+
+## ⚠️ Python Version
+
+**Requires Python 3.8 – 3.11**
+
+MediaPipe does not support Python 3.12 or above. If you're on a newer version, install 3.11 via [python.org](https://www.python.org/downloads/release/python-3119/) or use `pyenv`:
+
+```bash
+pyenv install 3.11.9
+pyenv local 3.11.9
+```
 
 ---
 
@@ -129,6 +146,7 @@ const CARD_DATA = [
 
 ## Known Limitations
 
+- Requires **Python 3.8 – 3.11** — MediaPipe does not support Python 3.12+
 - Works best with a **plain background** (non-skin-colored wall behind hand)
 - Good, even lighting improves detection accuracy
 - Requires Python to be running locally — cannot be fully hosted on static platforms like Netlify
