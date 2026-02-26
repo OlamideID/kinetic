@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kinetic</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=JetBrains+Mono:wght@300;400&display=swap"
+        rel="stylesheet">
+    <style>
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* ── Tokens ── */
+        :root {
+            --ease: cubic-bezier(0.23, 1, 0.32, 1);
+            --cw: 160px;
+            --ch: 220px;
+        }
+
+        [data-theme="dark"] {
+            --bg: #0c0c0c;
+            --surface: #161616;
+            --border: rgba(255, 255, 255, 0.07);
+            --text: #e8e8e8;
+            --muted: #3a3a3a;
+            --accent: #e4ff3d;
+            --accent-dim: rgba(228, 255, 61, 0.12);
+            --grab: #ff4060;
+            --grab-dim: rgba(255, 64, 96, 0.15);
+            --shadow: 0 24px 64px rgba(0, 0, 0, 0.8);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --overlay: rgba(12, 12, 12, 0.7);
+        }
+
+        [data-theme="light"] {
+            --bg: #f0ede8;
+            --surface: #e8e4de;
+            --border: rgba(0, 0, 0, 0.08);
+            --text: #1a1a1a;
+            --muted: #b0aba3;
+            --accent: #1a1aff;
+            --accent-dim: rgba(26, 26, 255, 0.08);
+            --grab: #ff2d55;
+            --grab-dim: rgba(255, 45, 85, 0.1);
+            --shadow: 0 24px 64px rgba(0, 0, 0, 0.15);
+            --card-border: rgba(0, 0, 0, 0.1);
+            --overlay: rgba(240, 237, 232, 0.8);
+        }
+
+        body {
+            background: var(--bg);
+            height: 100vh;
+            overflow: hidden;
+            font-family: 'JetBrains Mono', monospace;
+            cursor: none;
+            user-select: none;
+            transition: background 0.4s var(--ease);
+        }
+
+        /* ── Noise texture ── */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 9500;
+            opacity: 0.6;
+        }
+
+        /* ── HUD ── */
+        #hud {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 18px 28px;
+            z-index: 8000;
+            pointer-events: none;
+        }
+
+        .wordmark {
+            font-family: 'Syne', sans-serif;
+            font-weight: 800;
+            font-size: 1.4rem;
+            letter-spacing: -0.02em;
+            color: var(--text);
+            line-height: 1;
+            pointer-events: all;
+        }
+
+        .wordmark span {
+            color: var(--accent);
+        }
+
+        /* ── Right side controls ── */
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            pointer-events: all;
+        }
+
+        /* Theme toggle */
+        #themeToggle {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--text);
+            font-size: 1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.3s, border 0.3s, transform 0.2s;
+        }
+
+        #themeToggle:hover {
+            transform: scale(1.1);
+        }
+
+        /* Status chips */
+        .chip {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            padding: 5px 11px;
+            font-size: 0.5rem;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--muted);
+            transition: background 0.3s, border 0.3s;
+        }
+
+        .pip {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: var(--muted);
+            transition: background 0.3s, box-shadow 0.3s;
+        }
+
+        .pip.ws-on {
+            background: var(--accent);
+            box-shadow: 0 0 6px var(--accent);
+        }
+
+        .pip.hand-on {
+            background: var(--grab);
+            box-shadow: 0 0 6px var(--grab);
+        }
+
+        /* ── Bottom status bar ── */
+        #statusBar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 14px 28px;
+            z-index: 8000;
+            pointer-events: none;
+        }
+
+        #gesture {
+            font-family: 'Syne', sans-serif;
+            font-weight: 700;
+            font-size: 0.7rem;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: var(--muted);
+            transition: color 0.2s, text-shadow 0.2s;
+        }
+
+        #gesture.open {
+            color: var(--accent);
+            text-shadow: 0 0 20px var(--accent);
+        }
+
+        #gesture.closed {
+            color: var(--grab);
+            text-shadow: 0 0 20px var(--grab);
+        }
+
+        #cardCount {
+            font-size: 0.48rem;
+            letter-spacing: 0.12em;
+            color: var(--muted);
+        }
+
+        /* ── Offline overlay ── */
+        #offline {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            z-index: 7000;
+            pointer-events: none;
+            transition: opacity 0.5s;
+        }
+
+        #offline.hidden {
+            opacity: 0;
+        }
+
+        #offline h2 {
+            font-family: 'Syne', sans-serif;
+            font-weight: 800;
+            font-size: 2rem;
+            letter-spacing: -0.02em;
+            color: var(--muted);
+        }
+
+        #offline p {
+            font-size: 0.5rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--border);
+        }
+
+        /* ── Cursor ── */
+        #cursor {
+            position: fixed;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 1.5px solid var(--accent);
+            pointer-events: none;
+            z-index: 9999;
+            transform: translate(-50%, -50%);
+            transition: border-color 0.15s, background 0.15s, transform 0.12s;
+        }
+
+        #cursor.closed {
+            background: var(--grab);
+            border-color: var(--grab);
+            transform: translate(-50%, -50%) scale(0.45);
+        }
+
+        #cursor.hover {
+            border-color: var(--text);
+            transform: translate(-50%, -50%) scale(1.8);
+        }
+
+        /* ── Stage ── */
+        #stage {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* ── Cards ── */
+        .card {
+            position: absolute;
+            width: var(--cw);
+            height: var(--ch);
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid var(--card-border);
+            box-shadow: var(--shadow);
+            will-change: transform;
+            backface-visibility: hidden;
+            transition: box-shadow 0.3s var(--ease);
+        }
+
+        .card img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+            pointer-events: none;
+            -webkit-user-drag: none;
+        }
+
+        .card-footer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 28px 12px 10px;
+            background: linear-gradient(transparent, rgba(0, 0, 0, 0.82));
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+
+        .card-label {
+            font-size: 0.48rem;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            color: rgba(255, 255, 255, 0.55);
+        }
+
+        .card-num {
+            font-size: 0.42rem;
+            color: rgba(255, 255, 255, 0.25);
+        }
+
+        /* hover state */
+        .card.is-hover {
+            box-shadow: var(--shadow),
+                0 0 0 2px var(--accent),
+                0 0 32px var(--accent-dim);
+        }
+
+        /* drag state */
+        .card.is-drag {
+            box-shadow: 0 40px 100px rgba(0, 0, 0, 0.9),
+                0 0 0 2px var(--grab),
+                0 0 40px var(--grab-dim);
+        }
+
+        /* stacked (following fist with no specific card grabbed) */
+        .card.is-stack {
+            transition: box-shadow 0.3s var(--ease);
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- HUD -->
+    <div id="hud">
+        <div class="wordmark">Kinetic<span>.</span></div>
+        <div class="controls">
+            <button id="themeToggle" title="Toggle theme">☀️</button>
+            <div class="chip">
+                <div class="pip" id="wsPip"></div><span id="wsLabel">connecting</span>
+            </div>
+            <div class="chip">
+                <div class="pip" id="handPip"></div><span id="handLabel">no hand</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status bar -->
+    <div id="statusBar">
+        <div id="gesture">— waiting —</div>
+        <div id="cardCount"></div>
+    </div>
+
+    <!-- Offline -->
+    <div id="offline">
+        <h2>No tracker signal</h2>
+        <p>Run hand_tracker.py · mouse + click also works</p>
+    </div>
+
+    <!-- Cursor -->
+    <div id="cursor"></div>
+
+    <!-- Stage -->
+    <div id="stage"></div>
+
+    <script>
+        // ─── Config ───────────────────────────────────────────────────
+        const WS_URL = 'ws://localhost:6789';
+        const CW = 160, CH = 220;
+        const HOVER_RADIUS = 115;
+        const LERP = 0.16;
+
+        const CARD_DATA = [
+            { label: 'Image 1', img: 'assets/1.jpg' },
+            { label: 'Image 2', img: 'assets/2.jpg' },
+            { label: 'Image 3', img: 'assets/3.jpg' },
+            { label: 'Image 4', img: 'assets/4.jpg' },
+            { label: 'Image 5', img: 'assets/5.jpg' },
+            { label: 'Image 6', img: 'assets/6.jpg' },
+            { label: 'Image 7', img: 'assets/7.jpg' },
+        ];
+
+        // ─── State ────────────────────────────────────────────────────
+        let vw = window.innerWidth, vh = window.innerHeight;
+        let targetX = vw / 2, targetY = vh / 2;
+        let curX = vw / 2, curY = vh / 2;
+
+        let gesture = 'open';
+        let prevGesture = 'open';
+        let hoveredIdx = -1;
+        let draggedIdx = -1;       // single card being dragged
+        let stackMode = false;    // true = fist closed, no card selected, whole pile follows
+        let stackOffsets = [];      // per-card offset from cursor when stack started
+
+        // ─── Theme ───────────────────────────────────────────────────
+        let isDark = true;
+        document.getElementById('themeToggle').addEventListener('click', () => {
+            isDark = !isDark;
+            document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+            document.getElementById('themeToggle').textContent = isDark ? '☀️' : '🌙';
+        });
+
+        // ─── Build cards ─────────────────────────────────────────────
+        const stage = document.getElementById('stage');
+        const cardEls = [];
+        const cards = [];
+
+        function randomScatter() {
+            const spreadX = vw * 0.30;
+            const spreadY = vh * 0.22;
+            const rx = (Math.random() + Math.random() - 1) * spreadX;
+            const ry = (Math.random() + Math.random() - 1) * spreadY;
+            return {
+                rx: vw / 2 + rx,
+                ry: vh / 2 + ry,
+                rr: (Math.random() - 0.5) * 22,
+            };
+        }
+
+        CARD_DATA.forEach((data, i) => {
+            const el = document.createElement('div');
+            el.className = 'card';
+            el.innerHTML = `
+    <img src="${data.img}" alt="${data.label}">
+    <div class="card-footer">
+      <span class="card-label">${data.label}</span>
+      <span class="card-num">0${i + 1}</span>
+    </div>`;
+            stage.appendChild(el);
+            cardEls.push(el);
+
+            const sc = randomScatter();
+            cards.push({
+                x: vw / 2, y: vh / 2,
+                vx: 0, vy: 0,
+                rot: 0, vrot: 0,
+                restX: sc.rx, restY: sc.ry, restRot: sc.rr,
+                dragOffX: 0, dragOffY: 0,
+                zBase: i + 1,
+                ready: false,
+            });
+
+            stackOffsets.push({ dx: 0, dy: 0 });
+
+            setTimeout(() => { cards[i].ready = true; }, i * 110);
+        });
+
+        document.getElementById('cardCount').textContent =
+            `${CARD_DATA.length} cards`;
+
+        // ─── DOM ─────────────────────────────────────────────────────
+        const wsPip = document.getElementById('wsPip');
+        const wsLabel = document.getElementById('wsLabel');
+        const handPip = document.getElementById('handPip');
+        const handLbl = document.getElementById('handLabel');
+        const gestureEl = document.getElementById('gesture');
+        const offline = document.getElementById('offline');
+        const cursor = document.getElementById('cursor');
+
+        // ─── WebSocket ────────────────────────────────────────────────
+        function connectWS() {
+            const ws = new WebSocket(WS_URL);
+            ws.onopen = () => {
+                wsPip.className = 'pip ws-on';
+                wsLabel.textContent = 'live';
+                offline.classList.add('hidden');
+            };
+            ws.onmessage = ({ data }) => {
+                const d = JSON.parse(data);
+                if (d.detected) {
+                    targetX = d.x * vw;
+                    targetY = d.y * vh;
+                    gesture = d.gesture;
+                    handPip.className = 'pip hand-on';
+                    handLbl.textContent = gesture;
+                } else {
+                    handPip.className = 'pip';
+                    handLbl.textContent = 'no hand';
+                }
+            };
+            ws.onclose = () => {
+                wsPip.className = 'pip';
+                wsLabel.textContent = 'offline';
+                setTimeout(connectWS, 2000);
+            };
+            ws.onerror = () => ws.close();
+        }
+        connectWS();
+
+        // Mouse always active
+        document.addEventListener('mousemove', e => { targetX = e.clientX; targetY = e.clientY; });
+        document.addEventListener('mousedown', () => { gesture = 'closed'; });
+        document.addEventListener('mouseup', () => { gesture = 'open'; });
+        window.addEventListener('resize', () => { vw = window.innerWidth; vh = window.innerHeight; });
+
+        // ─── Helpers ─────────────────────────────────────────────────
+        function lerp(a, b, t) { return a + (b - a) * t; }
+
+        function spring(cur, target, vel, k = 0.09, damp = 0.78) {
+            const nv = (vel + (target - cur) * k) * damp;
+            return { val: cur + nv, vel: nv };
+        }
+
+        function stackPos(i) {
+            // Neat staggered pile
+            return {
+                sx: (i - (cards.length - 1) / 2) * 2.5,
+                sy: i * 1.2,
+                sr: (i - (cards.length - 1) / 2) * 1.8,
+            };
+        }
+
+        // ─── Main loop ────────────────────────────────────────────────
+        function tick() {
+            // Smooth cursor
+            curX = lerp(curX, targetX, LERP);
+            curY = lerp(curY, targetY, LERP);
+            cursor.style.left = curX + 'px';
+            cursor.style.top = curY + 'px';
+
+            const justClosed = gesture === 'closed' && prevGesture === 'open';
+            const justOpened = gesture === 'open' && prevGesture === 'closed';
+
+            // ── ON FIST CLOSE ──
+            if (justClosed) {
+                if (hoveredIdx !== -1) {
+                    // Grab specific card
+                    draggedIdx = hoveredIdx;
+                    stackMode = false;
+                    cards[draggedIdx].dragOffX = cards[draggedIdx].x - curX;
+                    cards[draggedIdx].dragOffY = cards[draggedIdx].y - curY;
+                } else {
+                    // No card hovered → stack mode: whole pile follows fist
+                    draggedIdx = -1;
+                    stackMode = true;
+                    // Record offsets of every card from cursor right now
+                    cards.forEach((c, i) => {
+                        stackOffsets[i].dx = c.x - curX;
+                        stackOffsets[i].dy = c.y - curY;
+                    });
+                }
+            }
+
+            // ── ON FIST OPEN ──
+            if (justOpened) {
+                if (draggedIdx !== -1) {
+                    // Drop card where it is — save as new rest position
+                    cards[draggedIdx].restX = cards[draggedIdx].x;
+                    cards[draggedIdx].restY = cards[draggedIdx].y;
+                    cards[draggedIdx].restRot = 0;
+                }
+                draggedIdx = -1;
+                stackMode = false;
+            }
+
+            // ── FIX: if still closed and stackMode, keep updating offsets toward pile center ──
+            // This handles the case where hand was lost and re-detected mid-drag
+            // stackMode stays true as long as gesture stays 'closed', no re-init needed
+
+            prevGesture = gesture;
+
+            // ── Hover (only when open, no drag) ──
+            if (gesture === 'open' && draggedIdx === -1) {
+                let best = -1, bestD = HOVER_RADIUS;
+                cards.forEach((c, i) => {
+                    const d = Math.hypot(c.x - curX, c.y - curY);
+                    if (d < bestD) { bestD = d; best = i; }
+                });
+                hoveredIdx = best;
+            } else {
+                hoveredIdx = -1;
+            }
+
+            // ── Cursor style ──
+            cursor.className = gesture === 'closed' ? 'closed'
+                : hoveredIdx !== -1 ? 'hover'
+                    : '';
+
+            // ── Gesture label ──
+            if (draggedIdx !== -1) {
+                gestureEl.textContent = '✊  dragging card';
+                gestureEl.className = 'closed';
+            } else if (stackMode) {
+                gestureEl.textContent = '✊  moving stack';
+                gestureEl.className = 'closed';
+            } else if (hoveredIdx !== -1) {
+                gestureEl.textContent = '☝️  hover — fist to grab';
+                gestureEl.className = 'open';
+            } else {
+                gestureEl.textContent = '✋  scattered';
+                gestureEl.className = 'open';
+            }
+
+            // ── Animate cards ──
+            cards.forEach((c, i) => {
+                let tx, ty, tr;
+
+                if (i === draggedIdx) {
+                    // This specific card follows the fist
+                    tx = curX + c.dragOffX;
+                    ty = curY + c.dragOffY;
+                    tr = 0;
+                } else if (stackMode) {
+                    // Stack mode: all cards move with the fist, keeping their relative pile offsets
+                    const sp = stackPos(i);
+                    tx = curX + sp.sx;
+                    ty = curY + sp.sy;
+                    tr = sp.sr;
+                } else {
+                    // Scatter rest position (or center if not ready yet)
+                    tx = c.ready ? c.restX : vw / 2;
+                    ty = c.ready ? c.restY : vh / 2;
+                    tr = c.ready ? c.restRot : 0;
+                }
+
+                const rx = spring(c.x, tx, c.vx, 0.09, 0.78);
+                const ry = spring(c.y, ty, c.vy, 0.09, 0.78);
+                const rrot = spring(c.rot, tr, c.vrot, 0.09, 0.78);
+
+                c.x = rx.val; c.vx = rx.vel;
+                c.y = ry.val; c.vy = ry.vel;
+                c.rot = rrot.val; c.vrot = rrot.vel;
+
+                const isHov = i === hoveredIdx;
+                const isDrag = i === draggedIdx;
+                const isStack = stackMode && !isDrag;
+
+                cardEls[i].classList.toggle('is-hover', isHov && !isDrag);
+                cardEls[i].classList.toggle('is-drag', isDrag);
+                cardEls[i].classList.toggle('is-stack', isStack);
+
+                cardEls[i].style.zIndex = isDrag ? 999
+                    : isHov ? 500
+                        : isStack ? (cards.length - i)
+                            : c.zBase;
+
+                cardEls[i].style.transform =
+                    `translate(${c.x - CW / 2}px, ${c.y - CH / 2}px) rotate(${c.rot}deg)`;
+            });
+
+            requestAnimationFrame(tick);
+        }
+
+        tick();
+    </script>
+</body>
+
+</html>
